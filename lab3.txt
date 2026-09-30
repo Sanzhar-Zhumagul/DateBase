@@ -1,0 +1,230 @@
+-- Part A: Database and Table Setup
+-- 1. Create database and tables
+CREATE TABLE IF NOT EXISTS employees (
+    emp_id SERIAL PRIMARY KEY,
+    first_name VARCHAR(50) NOT NULL,
+    last_name VARCHAR(50) NOT NULL,
+    department VARCHAR(50) DEFAULT 'Unassigned',
+    salary INT DEFAULT 40000,
+    hire_date DATE DEFAULT CURRENT_DATE,
+    status VARCHAR(20) DEFAULT 'Active'
+);
+
+CREATE TABLE IF NOT EXISTS departments (
+    dept_id SERIAL PRIMARY KEY,
+    dept_name VARCHAR(50) UNIQUE NOT NULL,
+    budget INT DEFAULT 0,
+    manager_id INT
+);
+
+CREATE TABLE IF NOT EXISTS projects (
+    project_id SERIAL PRIMARY KEY,
+    project_name VARCHAR(100) NOT NULL,
+    dept_id INT,
+    start_date DATE,
+    end_date DATE,
+    budget INT
+);
+
+-- Наполнение стартовыми данными
+INSERT INTO departments (dept_name, budget, manager_id) VALUES 
+('IT', 150000, 1),
+('Sales', 80000, 2),
+('HR', 50000, 3)
+ON CONFLICT DO NOTHING;
+
+INSERT INTO employees (first_name, last_name, department, salary, hire_date, status) VALUES 
+('John', 'Doe', 'IT', 75000, '2019-05-15', 'Active'),
+('Jane', 'Smith', 'IT', 65000, '2021-02-01', 'Active'),
+('Bob', 'Johnson', 'Sales', 55000, '2018-11-10', 'Terminated'),
+('Alice', 'Williams', 'Sales', 45000, '2022-08-20', 'Inactive')
+ON CONFLICT DO NOTHING;
+
+INSERT INTO projects (project_name, dept_id, start_date, end_date, budget) VALUES 
+('Cloud Migration', 1, '2022-01-01', '2022-12-31', 60000),
+('CRM Update', 2, '2023-02-01', '2023-11-30', 40000)
+ON CONFLICT DO NOTHING;
+
+
+
+-- Part B: Advanced INSERT Operations
+
+-- 2. INSERT with column specification
+INSERT INTO employees (first_name, last_name, department) 
+VALUES ('Michael', 'Brown', 'IT');
+
+-- 3. INSERT with DEFAULT values[cite: 4]
+INSERT INTO employees (first_name, last_name, salary, status) 
+VALUES ('Sarah', 'Connor', DEFAULT, DEFAULT);
+
+-- 4. INSERT multiple rows in single statement[cite: 4]
+INSERT INTO departments (dept_name, budget) VALUES 
+('Finance', 120000),
+('Marketing', 90000),
+('R&D', 200000);
+
+-- 5. INSERT with expressions[cite: 4]
+INSERT INTO employees (first_name, last_name, department, hire_date, salary) 
+VALUES ('David', 'Miller', 'IT', CURRENT_DATE, CAST(50000 * 1.1 AS INT));
+
+-- 6. INSERT from SELECT (subquery)[cite: 4]
+CREATE TEMP TABLE temp_employees AS 
+SELECT * FROM employees WHERE department = 'IT';
+
+
+-- Part C: Complex UPDATE Operations
+
+-- 7. UPDATE with arithmetic expressions[cite: 4]
+UPDATE employees 
+SET salary = CAST(salary * 1.10 AS INT);
+
+-- 8. UPDATE with WHERE clause and multiple conditions[cite: 4]
+UPDATE employees 
+SET status = 'Senior' 
+WHERE salary > 60000 AND hire_date < '2020-01-01';
+
+-- 9. UPDATE using CASE expression[cite: 4]
+UPDATE employees 
+SET department = CASE 
+    WHEN salary > 80000 THEN 'Management'
+    WHEN salary BETWEEN 50000 AND 80000 THEN 'Senior'
+    ELSE 'Junior'
+END;
+
+-- 10. UPDATE with DEFAULT[cite: 4]
+UPDATE employees 
+SET department = DEFAULT 
+WHERE status = 'Inactive';
+
+-- 11. UPDATE with subquery[cite: 4]
+UPDATE departments d
+SET budget = CAST((SELECT AVG(e.salary) FROM employees e WHERE e.department = d.dept_name) * 1.20 AS INT)
+WHERE EXISTS (SELECT 1 FROM employees e WHERE e.department = d.dept_name);
+
+-- 12. UPDATE multiple columns[cite: 4]
+UPDATE employees 
+SET salary = CAST(salary * 1.15 AS INT), status = 'Promoted' 
+WHERE department = 'Sales';
+
+
+
+-- Part D: Advanced DELETE Operations
+
+
+-- 13. DELETE with simple WHERE condition[cite: 4]
+DELETE FROM employees 
+WHERE status = 'Terminated';
+
+-- 14. DELETE with complex WHERE clause[cite: 4]
+DELETE FROM employees 
+WHERE salary < 40000 AND hire_date > '2023-01-01' AND department IS NULL;
+
+-- 15. DELETE with subquery[cite: 4]
+DELETE FROM departments 
+WHERE dept_name NOT IN (
+    SELECT DISTINCT department 
+    FROM employees 
+    WHERE department IS NOT NULL
+);
+
+-- 16. DELETE with RETURNING clause[cite: 4]
+DELETE FROM projects 
+WHERE end_date < '2023-01-01' 
+RETURNING *;
+
+
+
+-- Part E: Operations with NULL Values
+
+
+-- 17. INSERT with NULL values[cite: 4]
+INSERT INTO employees (first_name, last_name, salary, department) 
+VALUES ('NullUser', 'Test', NULL, NULL);
+
+-- 18. UPDATE NULL handling[cite: 4]
+UPDATE employees 
+SET department = 'Unassigned' 
+WHERE department IS NULL;
+
+-- 19. DELETE with NULL conditions[cite: 4]
+DELETE FROM employees 
+WHERE salary IS NULL OR department IS NULL;
+
+
+
+-- Part F: RETURNING Clause Operations
+
+
+-- 20. INSERT with RETURNING[cite: 4]
+INSERT INTO employees (first_name, last_name, department, salary) 
+VALUES ('Alex', 'Cross', 'IT', 60000) 
+RETURNING emp_id, (first_name || ' ' || last_name) AS full_name;
+
+-- 21. UPDATE with RETURNING[cite: 4]
+UPDATE employees 
+SET salary = salary + 5000 
+WHERE department = 'IT' 
+RETURNING emp_id, (salary - 5000) AS old_salary, salary AS new_salary;
+
+-- 22. DELETE with RETURNING all columns[cite: 4]
+DELETE FROM employees 
+WHERE hire_date < '2020-01-01' 
+RETURNING *;
+
+
+
+-- Part G: Advanced DML Patterns
+
+
+-- 23. Conditional INSERT[cite: 4]
+INSERT INTO employees (first_name, last_name, department, salary)
+SELECT 'Bruce', 'Wayne', 'Management', 100000
+WHERE NOT EXISTS (
+    SELECT 1 FROM employees WHERE first_name = 'Bruce' AND last_name = 'Wayne'
+);
+
+-- 24. UPDATE with JOIN logic using subqueries[cite: 4]
+UPDATE employees 
+SET salary = CAST(salary * (
+    CASE 
+        WHEN (SELECT budget FROM departments WHERE dept_name = employees.department) > 100000 THEN 1.10
+        ELSE 1.05
+    END
+) AS INT)
+WHERE department IN (SELECT dept_name FROM departments);
+
+-- 25. Bulk operations[cite: 4]
+WITH inserted_users AS (
+    INSERT INTO employees (first_name, last_name, department, salary) VALUES 
+    ('User1', 'Test', 'IT', 50000),
+    ('User2', 'Test', 'IT', 50000),
+    ('User3', 'Test', 'IT', 50000),
+    ('User4', 'Test', 'IT', 50000),
+    ('User5', 'Test', 'IT', 50000)
+    RETURNING emp_id
+)
+UPDATE employees 
+SET salary = CAST(salary * 1.10 AS INT) 
+WHERE emp_id IN (SELECT emp_id FROM inserted_users);
+
+-- 26. Data migration simulation[cite: 4]
+CREATE TABLE IF NOT EXISTS employee_archive (LIKE employees INCLUDING ALL);
+
+WITH moved_rows AS (
+    DELETE FROM employees 
+    WHERE status = 'Inactive' 
+    RETURNING *
+)
+INSERT INTO employee_archive 
+SELECT * FROM moved_rows;
+
+-- 27. Complex business logic[cite: 4]
+UPDATE projects 
+SET end_date = end_date + INTERVAL '30 days'
+WHERE budget > 50000 AND dept_id IN (
+    SELECT d.dept_id 
+    FROM departments d 
+    JOIN employees e ON d.dept_name = e.department 
+    GROUP BY d.dept_id 
+    HAVING COUNT(e.emp_id) > 3
+);
